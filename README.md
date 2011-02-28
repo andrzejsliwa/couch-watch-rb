@@ -17,6 +17,6 @@ Related projects:
 =================
 
   * [couch-watch](https://github.com/andrzejsliwa/couch-watch) - Main Project
-  * [couch-watch-js](https://github.com/andrzejsliwa/couch-watch-js)
+  * [couch-watch-js](https://github.com/andrzejsliwa/couch-watch-js) - CouchWatch JavaScript Client
 
 
