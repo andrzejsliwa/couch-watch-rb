@@ -1,4 +1,4 @@
-# time ruby -e "require 'lib/couch_watch' ; CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger' ; (1..1000).each {|i| CouchWatch.add(:debug, \"#{Time.now}, #{i}\"); Thread.pass }; CouchWatch.flush"
+# time ruby lib/couch_watch.rb
 require 'thread'
 require 'net/http'
 require 'uri'
@@ -8,15 +8,18 @@ class CouchWatch
   @@store = []
   @@loggers = []
   @@server = nil
+  @@counter = 0
+  @@working = true
 
   def self.worker amount=1
     (0..amount-1).each do
       @@loggers.push(Thread.new do
-        loop do
-          @@mutex.synchronize do
-            if @@store.length > 0
+        while @@working || @@store.length > 0 do
+          if @@store.length > 0
+            @@mutex.synchronize do
               @@store.each {|severity, message|
                 Net::HTTP.post_form(@@server, { "severity" => severity, "message" => message })
+                @@counter +=1
               }
               @@store.clear
             end
@@ -37,7 +40,22 @@ class CouchWatch
     #TODO: replace dead threads with new ones
     @@loggers[0].run if @@loggers[0]
   end
+  def self.close
+    #TODO: replace dead threads with new ones
+    @@working = false
+    flush
+    @@loggers.map{|l| l.join}
+    puts "count=#{@@counter}"
+  end
   def self.server server
     @@server = URI.parse(server)
   end
 end
+
+CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger'
+CouchWatch.worker 3
+(1..1000).each do |i|
+  CouchWatch.add(:debug, "#{Time.now}, #{i}")
+  Thread.pass
+end
+CouchWatch.close
