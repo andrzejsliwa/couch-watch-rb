@@ -1,11 +1,12 @@
 # time ruby couch_watch_rb.rb
+
 require 'lib/couch_watch'
 
 sleep_time = 0.002
 CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger'
-CouchWatch.worker 3
+CouchWatch.workers 3 #work with three workers
 (1..1000).each do |i|
   CouchWatch.add(:debug, "#{Time.now}, #{i}")
-  sleep sleep_time
+  sleep sleep_time 
 end
-CouchWatch.close
+CouchWatch.close #displays count, but "CouchWatch.workers 0" does the same job

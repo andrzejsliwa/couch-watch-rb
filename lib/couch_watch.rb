@@ -10,43 +10,53 @@ class CouchWatch
   @@counter = 0
   @@working = true
 
-  def self.worker amount=1
-    (0..amount-1).each do
-      @@loggers.push(Thread.new do
-        while @@working || @@store.length > 0 do
-          @@mutex.synchronize do
-            #puts "#{Thread.current.inspect} awaiting #{@@store.length}" if (@@store.length > 1)
-            if (@@store.length > 0)
-              severity, message = @@store.shift()
-              Net::HTTP.post_form(@@server, { "severity" => severity, "message" => message })
-              @@counter +=1
-            end
-          end
-          sleep 0.001 #wait 1ms
-        end
-        @@mutex.synchronize do
-          @@store.clear if (@@store.length > 0)
-        end
-      end)
-    end
+  def self.server server
+    @@server = URI.parse(server)
   end
 
   def self.add severity, message
-    CouchWatch.worker 2 if @@loggers.length < 1
-    @@mutex.synchronize do
-      @@store.push [severity, message]
-    end
+    workers(2) if @@loggers.length < 1
+    @@mutex.synchronize { @@store.push [severity, message] }
   end
+
+  def self.close
+    workers(0)
+    puts "count=#{@@counter}"
+  end
+
+  def self.workers amount=1
+    (amount...@@loggers.length).each { finish_worker(  @@loggers.pop() ) }
+    (@@loggers.length...amount).each { @@loggers.push( create_worker() ) }
+  end
+
   def self.flush
     @@loggers[0].run if @@loggers[0]
   end
-  def self.close
-    @@working = false
-    flush
-    @@loggers.map{|l| l.join}
-    puts "count=#{@@counter}"
+
+  private
+
+  def self.create_worker
+    Thread.new do
+      Thread.current[:working] = true
+      while Thread.current[:working] || @@store.length > 0 do
+        @@mutex.synchronize do
+          #puts "#{Thread.current.inspect} awaiting #{@@store.length}" if (@@store.length > 1)
+          if (@@store.length > 0)
+            severity, message = @@store.shift()
+            Net::HTTP.post_form(@@server, { "severity" => severity, "message" => message })
+            @@counter +=1
+          end
+        end
+        sleep 0.001 #wait 1ms
+      end
+      @@mutex.synchronize do
+        @@store.clear if (@@store.length > 0)
+      end
+    end
   end
-  def self.server server
-    @@server = URI.parse(server)
+
+  def self.finish_worker worker
+    worker[:working] = false
+    worker.join
   end
 end
