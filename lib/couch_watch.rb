@@ -1,4 +1,3 @@
-# time ruby lib/couch_watch.rb
 require 'thread'
 require 'net/http'
 require 'uri'
@@ -39,11 +38,9 @@ class CouchWatch
     end
   end
   def self.flush
-    #TODO: replace dead threads with new ones
     @@loggers[0].run if @@loggers[0]
   end
   def self.close
-    #TODO: replace dead threads with new ones
     @@working = false
     flush
     @@loggers.map{|l| l.join}
@@ -53,12 +50,3 @@ class CouchWatch
     @@server = URI.parse(server)
   end
 end
-
-sleep_time = 0.002
-CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger'
-CouchWatch.worker 3
-(1..1000).each do |i|
-  CouchWatch.add(:debug, "#{Time.now}, #{i}")
-  sleep sleep_time
-end
-CouchWatch.close
