@@ -15,16 +15,18 @@ class CouchWatch
     (0..amount-1).each do
       @@loggers.push(Thread.new do
         while @@working || @@store.length > 0 do
-          if @@store.length > 0
-            @@mutex.synchronize do
-              @@store.each {|severity, message|
-                Net::HTTP.post_form(@@server, { "severity" => severity, "message" => message })
-                @@counter +=1
-              }
-              @@store.clear
+          @@mutex.synchronize do
+            #puts "#{Thread.current.inspect} awaiting #{@@store.length}" if (@@store.length > 1)
+            if (@@store.length > 0)
+              severity, message = @@store.shift()
+              Net::HTTP.post_form(@@server, { "severity" => severity, "message" => message })
+              @@counter +=1
             end
           end
           sleep 0.001 #wait 1ms
+        end
+        @@mutex.synchronize do
+          @@store.clear if (@@store.length > 0)
         end
       end)
     end
@@ -52,10 +54,11 @@ class CouchWatch
   end
 end
 
+sleep_time = 0.002
 CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger'
 CouchWatch.worker 3
 (1..1000).each do |i|
   CouchWatch.add(:debug, "#{Time.now}, #{i}")
-  Thread.pass
+  sleep sleep_time
 end
 CouchWatch.close
