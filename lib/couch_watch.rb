@@ -2,6 +2,11 @@ require 'thread'
 require 'net/http'
 require 'uri'
 
+# CouchWatch.server 'http://localhost:5984/couchwatch/_design/couchwatch/_update/logger'
+# CouchWatch.workers 1
+# CouchWatch.add(:debug, "#{Time.now}, #{i}")
+# CouchWatch.workers 0
+
 class CouchWatch
   @@mutex = Mutex.new
   @@store = []
